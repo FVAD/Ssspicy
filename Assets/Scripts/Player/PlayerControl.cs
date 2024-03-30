@@ -22,11 +22,12 @@ public class PlayerControl : MonoBehaviour
     private void Move(InputAction.CallbackContext obj)
     {
         Vector2 addPosition = inputControl.Player.Move.ReadValue<Vector2>();
-        currentHeadDirection = addPosition;
-        Vector2 position = (Vector2)playerHead.transform.position + addPosition;
-        player.RefreshPlayerBody();
+        player.Move(addPosition);
+        // currentHeadDirection = addPosition;
+        //Vector2 position = (Vector2)playerHead.transform.position + addPosition;
+        //player.RefreshPlayerBody();
 
-        playerHead.transform.position = position;
+        //playerHead.transform.position = position;
     }
 
     private void OnEnable()
