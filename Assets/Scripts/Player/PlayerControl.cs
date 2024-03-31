@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 public class PlayerControl : MonoBehaviour
 {
     public PlayerInputControl inputControl;
-    public GameObject playerHead;
+    // public GameObject playerHead;
     private Player player;
     // public Sprite[] playerHeadSprite; 
     public Vector2 currentHeadDirection = new Vector2(1, 0); // 之后要改这里

@@ -18,6 +18,8 @@ public class Player : MonoBehaviour
     public List<PlayerBodyData> playerBodyDataList = new();
     [Header("游戏属性")]
     public LayerMask obstacleLayerMask; // 障碍物所在的图层
+    public LayerMask foodLayerMask; // 食物所在的图层
+    public LayerMask floorLayerMask; // 地板所在的图层
     // 以下被整合进结构体,关于这个结构体，position属性是不需要的，但是不排除之后会增加其他属性的可能性，于是就留在这里
     //public List<Vector2> playerBodyPosList = new(3); // Body的位置数组理论上也由关卡决定
     //public List<GameObject> playerBodyList = new(3-1);
@@ -45,8 +47,20 @@ public class Player : MonoBehaviour
         tmpData.body.transform.localPosition = new Vector2(-3, 0);
         playerBodyDataList.Add(tmpData);
 
+        tmpData = new PlayerBodyData();
+        tmpData.body = GameObject.Instantiate(playerBody);
+        tmpData.body.transform.SetParent(transform);
+        tmpData.body.transform.localPosition = new Vector2(-4, 0);
+        playerBodyDataList.Add(tmpData);
+
+        tmpData = new PlayerBodyData();
+        tmpData.body = GameObject.Instantiate(playerBody);
+        tmpData.body.transform.SetParent(transform);
+        tmpData.body.transform.localPosition = new Vector2(-5, 0);
+        playerBodyDataList.Add(tmpData);
+
         playerHead.transform.localPosition = new Vector2(0, 0);
-        playerTail.transform.localPosition = new Vector2(-4, 0);
+        playerTail.transform.localPosition = new Vector2(-6, 0);
 
         // 以上是对角色位置的一个初始化设定
         playerControl = GetComponent<PlayerControl>();
@@ -109,29 +123,128 @@ public class Player : MonoBehaviour
         return collider != null;
     }
     #endregion
+    #region 食物检测
+    public bool CheckFoodAtPoint(Vector2 point)
+    {
+        // 检测指定点是否存在食物
+        Collider2D collider = Physics2D.OverlapPoint(point, foodLayerMask);
+
+        // 如果 collider 不为 null，表示存在食物，返回 true；否则返回 false
+        return collider != null;
+    }
+
+    public void PushFoodToDirection(Vector2 direction)
+    {
+        Collider2D collider = Physics2D.OverlapPoint((Vector2)transform.position + (Vector2)playerHead.transform.localPosition + direction, foodLayerMask);
+        if(collider != null)
+        {
+            Debug.Log("推动");
+            collider.transform.localPosition = (Vector2)collider.transform.localPosition + direction;
+        }
+    }
+
+    public void EatFood(Vector2 point)
+    {
+        Collider2D collider = Physics2D.OverlapPoint(point, foodLayerMask);
+        if (collider != null)
+        {
+            if(collider.GetComponent<props>().foodKind == FoodKind.banana)
+            {
+                // 吃掉香蕉
+                Destroy(collider.gameObject);
+
+                PlayerBodyData tmpData = new PlayerBodyData();
+                tmpData.body = GameObject.Instantiate(playerBody);
+                tmpData.body.transform.SetParent(transform);
+                tmpData.body.transform.localPosition = playerHead.transform.localPosition;
+                playerBodyDataList.Insert(0, tmpData);
+                playerLength++;
+
+                playerHead.transform.position = point;
+                RefreshPlayerBody();
+            }
+        }
+    }
+    #endregion
+
+    #region 身体检测（point是LocalPos）
+    public bool CheckBodyAtPoint(Vector2 point)
+    {
+        foreach (var data in playerBodyDataList)
+        {
+            if ((Vector2)data.body.transform.localPosition == point)
+            {
+                Debug.Log("存在身体");
+                return true;
+            }
+        }
+        return false;
+    }
+    #endregion
+    #region 检测整体是否在地板上
+    public bool CheckAtleastOneOnFloor()
+    {
+        Collider2D collider; 
+        foreach (var data in playerBodyDataList)
+        {
+            collider = Physics2D.OverlapPoint((Vector2)data.body.transform.position, floorLayerMask);
+            if (collider != null)
+            {
+                Debug.Log("存在地板");
+                return true;
+            }
+        }
+        collider = Physics2D.OverlapPoint((Vector2)playerHead.transform.position, floorLayerMask);
+        if (collider != null)
+        {
+            Debug.Log("存在地板");
+            return true;
+        }
+        collider = Physics2D.OverlapPoint((Vector2)playerTail.transform.position, floorLayerMask);
+        if (collider != null)
+        {
+            Debug.Log("存在地板");
+            return true;
+        }
+        Debug.Log("全部悬空");
+        return false;
+    }
+    #endregion
     #region 移动命令
     public void Move(Vector2 addPosition)
     {
         currentHeadDirection = addPosition;
         Vector2 position = (Vector2)playerHead.transform.localPosition + addPosition;
         #region 是否能移动确定
-        foreach(var data in playerBodyDataList)
+        if(CheckBodyAtPoint(position))
         {
-            if((Vector2)data.body.transform.localPosition == position)
-            {
-                Debug.Log("移动失败");
-                return;
-            }
+            Debug.Log("移动失败");
+            return;
         }
         if(CheckObstacleAtPoint((Vector2)transform.position + position + 0.25f * Vector2.up) && CheckObstacleAtPoint((Vector2)transform.position + position - 0.25f * Vector2.up))
         {
             Debug.Log("移动失败");
             return;
         }
-
-
         #endregion
-
+        #region 食物确定
+        if(CheckFoodAtPoint((Vector2)transform.position + position))
+        {
+            if((CheckObstacleAtPoint((Vector2)transform.position + position + addPosition + 0.25f * Vector2.up) && CheckObstacleAtPoint((Vector2)transform.position + position + addPosition - 0.25f * Vector2.up)) || 
+                CheckBodyAtPoint(position + addPosition))
+            {
+                // Debug.Log("存在障碍物");
+                // 两个Position检测食物延长线是否有障碍物或者自己的身体, 如果有，吃，没有，推动
+                // 爽吃！
+                EatFood((Vector2)transform.position + position);
+                return;
+            }
+            else
+            {
+                PushFoodToDirection(addPosition);
+            }
+        }
+        #endregion
         #region 角色身体前移补位
         PlayerBodyData playerBodyData;
         Vector2 tmpVec = new Vector2(0, 0), tmpVec2;
@@ -156,6 +269,7 @@ public class Player : MonoBehaviour
 
         playerHead.transform.localPosition = position;
         RefreshPlayerBody();
+        CheckAtleastOneOnFloor();
     }
 
 
