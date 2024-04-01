@@ -11,6 +11,7 @@ public class props : MonoBehaviour
     private Vector2 startScale;
 
     [Header("主要属性")]
+    public LayerMask floorLayerMask;
     public GameObject mainSprite;
     public GameObject shadow;
     public FoodKind foodKind;
@@ -29,6 +30,43 @@ public class props : MonoBehaviour
     void Update()
     {
         
+    }
+    public bool CheckFloorBelowFoot()
+    {
+        Collider2D collider;
+        collider = Physics2D.OverlapPoint(transform.position, floorLayerMask);
+        if(collider != null)
+        {
+            return true;
+        }
+        else
+        {
+            Debug.Log("食物脚下空的");
+            return false;
+        }
+    }
+
+    public void FoodFallingFailure()
+    {
+        StartCoroutine(FallingProgress());
+    }
+
+    IEnumerator FallingProgress()
+    {
+        yield return new WaitForSeconds(0.5f);
+        mainSprite.GetComponent<SpriteRenderer>().sortingLayerName = "Back";
+        Debug.Log("下落过程");
+        while (transform.position.y >= -50f)
+        {
+            // 计算当前帧的移动距离
+            float step = 40f * Time.deltaTime;
+
+            // 移动物体向目标位置
+            transform.position = Vector2.MoveTowards(transform.position, (Vector2)transform.position - new Vector2(0, 50f + transform.position.y), step);
+
+            // 等待下一帧
+            yield return null;
+        }
     }
 
     private void FixedUpdate()

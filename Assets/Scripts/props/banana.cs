@@ -11,6 +11,8 @@ public class banana : props
         foodKind = FoodKind.banana;
     }
 
+
+
     // Update is called once per frame
     void Update()
     {

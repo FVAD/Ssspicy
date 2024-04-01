@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 public class PlayerControl : MonoBehaviour
 {
@@ -17,6 +18,12 @@ public class PlayerControl : MonoBehaviour
         player = GetComponent<Player>();
         inputControl = new PlayerInputControl();
         inputControl.Player.Move.started += Move;
+        inputControl.Player.Reset.started += Reset;
+    }
+
+    private void Reset(InputAction.CallbackContext obj)
+    {
+        SceneManager.LoadScene("Scene1");
     }
 
     private void Move(InputAction.CallbackContext obj)
