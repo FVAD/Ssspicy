@@ -134,7 +134,7 @@ public class props : MonoBehaviour
         }
     }
 
-    private void FixedUpdate()
+    protected virtual void FixedUpdate()
     {
         floatingAnimation();
     }

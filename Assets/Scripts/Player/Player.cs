@@ -38,10 +38,12 @@ public class Player : MonoBehaviour
     public LayerMask foodLayerMask; // 食物所在的图层
     public LayerMask floorLayerMask; // 地板所在的图层
     public LayerMask GoalLayerMask; // 胜利点所在图层
+    public LayerMask trapLayerMask; // 陷阱所在图层
     public GameObject gameOverUI; // 失败结束页面
     public GameObject successUI; // 通关页面
     public float movingTargetDistance;
     public float movingCurrentDistance;
+    public int foodLeftCounts;
     // 以下被整合进结构体,关于这个结构体，position属性是不需要的，但是不排除之后会增加其他属性的可能性，于是就留在这里
     //public List<Vector2> playerBodyPosList = new(3); // Body的位置数组理论上也由关卡决定
     //public List<GameObject> playerBodyList = new(3-1);
@@ -250,7 +252,7 @@ public class Player : MonoBehaviour
                     RefreshPlayerBody();
                     break;
                 case FoodKind.pepper:
-                    // 吃掉辣椒，第一部分为自己向前移动一次，第二部分为整体喷射
+                    // 吃掉辣椒，第一部分为自己向前移动一次，第二部分融化可能的冰块，第三部分为整体喷射
                     Destroy(collider.gameObject);
                     #region 第一部分
                     PlayerBodyData playerBodyData;
@@ -276,17 +278,48 @@ public class Player : MonoBehaviour
                     RefreshPlayerBody();
                     #endregion
                     // 暂时不清楚这里需不需要检测掉落
+                    // 第二部分在移动开始时同步进行
+                    // CheckAndMeltIceAtPoint((Vector2)playerHead.transform.position + currentHeadDirection);    
                     // 下一步就是进行移动
-                    #region 第二部分
+                    #region 第三部分
                     CalculateTrueMoveDistance();
                     StartCoroutine(MovingProgress());
                     #endregion
+                    break;
+                case FoodKind.ice:
+                    // 什么都不会发生
+                    foodLeftCounts++; // 无效移动，对冲下面的减小
                     break;
                 default:
                     Debug.LogError("食物没有标签");
                     break;
             }
-            
+            foodLeftCounts--;
+        }
+    }
+
+    private void CheckAndMeltIceAtPoint(Vector2 point)
+    {
+        Collider2D collider = Physics2D.OverlapPoint(point, foodLayerMask);
+        if(collider != null)
+        {
+            // Debug.Log("检测到碰撞体");
+            if(collider.GetComponent<props>().foodKind == FoodKind.ice)
+            {
+                // Debug.Log("融化");
+                Destroy(collider.gameObject);
+            }
+        }
+        // 还有一种可能是木墙
+        collider = Physics2D.OverlapPoint(point, obstacleLayerMask);
+        if (collider != null)
+        {
+            // Debug.Log("检测到碰撞体");
+            if (collider.CompareTag("woodenWall"))
+            {
+                // Debug.Log("融化");
+                Destroy(collider.gameObject);
+            }
         }
     }
     #endregion
@@ -364,6 +397,8 @@ public class Player : MonoBehaviour
     {
         playerControl.inputControl.Player.Move.Disable();
         yield return new WaitForSeconds(1f);
+        // 移动的第二部分实际在这里触发
+        CheckAndMeltIceAtPoint((Vector2)playerHead.transform.position + currentHeadDirection);
         Vector2 startPos = transform.position;
         Vector2 endPos = startPos + movingTargetDistance * (-1 * currentHeadDirection);
         startMovingPos = startPos;
@@ -410,7 +445,23 @@ public class Player : MonoBehaviour
                 }
             }
         }
-
+        // 头尾
+        collider = Physics2D.OverlapPoint((Vector2)playerHead.transform.position + 0.45f * direction, foodLayerMask);
+        if (collider != null)
+        {
+            if (collider.GetComponent<props>().isMoving == false)
+            {
+                collider.GetComponent<props>().BeingPushedToPoint(endPoint - startMovingPos + (Vector2)playerHead.transform.position);
+            }
+        }
+        collider = Physics2D.OverlapPoint((Vector2)playerTail.transform.position + 0.45f * direction, foodLayerMask);
+        if (collider != null)
+        {
+            if (collider.GetComponent<props>().isMoving == false)
+            {
+                collider.GetComponent<props>().BeingPushedToPoint(endPoint - startMovingPos + (Vector2)playerTail.transform.position);
+            }
+        }
     }
 
     // 获取路上的标签isMoving不为true的props // 这个函数被弃用了
@@ -430,12 +481,23 @@ public class Player : MonoBehaviour
         {
             return ObjectKind.food;
         }
+        if(CheckTrapAtPoint(point))
+        {
+            return ObjectKind.trap;
+        }
         if(CheckBodyAtPoint(point - (Vector2)transform.position))
         {
             return ObjectKind.body;
         }
         return ObjectKind.air;
 
+    }
+    #endregion
+    #region 陷阱检测(wp)
+    private bool CheckTrapAtPoint(Vector2 point)
+    {
+        Collider2D collider = Physics2D.OverlapPoint(point, trapLayerMask);
+        return collider != null;
     }
     #endregion
     #region 身体检测（point是LocalPos）
@@ -549,6 +611,10 @@ public class Player : MonoBehaviour
             
             StartCoroutine(Falling()); // 发起协程
         }
+        else if(CheckTrapAtPoint(playerHead.transform.position))
+        {
+            TrapLoseBegin(); // 进入失败减小
+        }
     }
 
 
@@ -557,7 +623,7 @@ public class Player : MonoBehaviour
     // 检测蛇头下方是否是目标点
     private void CheckSuccess()
     {
-        if(Physics2D.OverlapBoxAll(Vector2.zero, Vector2.one, 0f, foodLayerMask).Length == 0)
+        if(foodLeftCounts == 0)
         {
             LevelIsClear = true;
         }
@@ -616,16 +682,72 @@ public class Player : MonoBehaviour
         }
         yield return new WaitForSeconds(0.2f);
         playerTail.SetActive(false);
-        
+        playerLength--;
         playerHead.GetComponent<SpriteRenderer>().sprite = playerHeadSprite[16];
         yield return new WaitForSeconds(0.2f);
         playerHead.SetActive(false);
+        playerLength--;
 
         successUI.SetActive(true);
 
     }
     #endregion
     #region 游戏失败
+    // 陷阱触发
+    private void TrapLoseBegin()
+    {
+        StartCoroutine(PlayerDecreaseFailure());
+    }
+    IEnumerator PlayerDecreaseFailure()
+    {
+        playerHead.GetComponent<SpriteRenderer>().sprite = playerHeadSprite[playerHeadSprite.IndexOf(playerHead.GetComponent<SpriteRenderer>().sprite) + 4];
+        PlayerBodyData playerBodyData;
+        Vector2 tmpVec = new Vector2(0, 0), tmpVec2;
+        while (playerLength > 2)
+        {
+            yield return new WaitForSeconds(0.2f); // 身体减少等待计时
+            for (int i = 0; i < playerLength - 2; i++)
+            {
+                playerBodyData = playerBodyDataList[i];
+                tmpVec2 = playerBodyData.body.transform.localPosition;
+                if (i == 0)
+                {
+                    tmpVec = playerBodyData.body.transform.localPosition;
+                    playerBodyData.body.transform.localPosition = playerHead.transform.localPosition;
+                }
+                else
+                {
+                    tmpVec2 = playerBodyData.body.transform.localPosition;
+                    playerBodyData.body.transform.localPosition = tmpVec;
+                    tmpVec = tmpVec2;
+                }
+            }
+            Destroy(playerBodyDataList[0].body);
+            playerBodyDataList.RemoveAt(0);
+            Debug.Log("此时长度：" + playerBodyDataList.Count);
+            playerLength--;
+            playerTail.transform.localPosition = tmpVec;
+            RefreshPlayerBody();
+            if (playerLength > 2)
+            {
+                playerHead.GetComponent<SpriteRenderer>().sprite = playerHeadSprite[playerBodyDataList[0].body.transform.position.y == playerHead.transform.position.y ? (playerBodyDataList[0].body.transform.position.x > playerHead.transform.position.x ? 20 : 18) : (playerBodyDataList[0].body.transform.position.y > playerHead.transform.position.y ? 19 : 17)];
+            }
+            else
+            {
+                playerHead.GetComponent<SpriteRenderer>().sprite = playerHeadSprite[playerTail.transform.position.y == playerHead.transform.position.y ? (playerTail.transform.position.x > playerHead.transform.position.x ? 20 : 18) : (playerTail.transform.position.y > playerHead.transform.position.y ? 19 : 17)];
+            }
+        }
+        yield return new WaitForSeconds(0.2f);
+        playerTail.SetActive(false);
+        playerLength--;
+        playerHead.GetComponent<SpriteRenderer>().sprite = playerHeadSprite[21];
+        yield return new WaitForSeconds(0.2f);
+        playerHead.SetActive(false);
+        playerLength--;
+
+        StartCoroutine(GameOver());
+    }
+
     IEnumerator Falling()
     {
         overState = GameOverState.Falling;

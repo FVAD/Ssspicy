@@ -32,6 +32,23 @@ public class StartUI : MonoBehaviour
     {
         SceneManager.LoadScene("Scene1");
     }
+
+    public void EnterScene2()
+    {
+        SceneManager.LoadScene("Scene2");
+    }
+    public void EnterScene3()
+    {
+        SceneManager.LoadScene("Scene3");
+    }
+    public void EnterScene4()
+    {
+        SceneManager.LoadScene("Scene4");
+    }
+    public void EnterScene5()
+    {
+        SceneManager.LoadScene("SceneTest");
+    }
     // Update is called once per frame
     void Update()
     {

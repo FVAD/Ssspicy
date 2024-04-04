@@ -6,12 +6,12 @@ public enum GameOverState
 
 public enum FoodKind
 {
-    // 辣椒、香蕉
-    pepper, banana,
+    // 辣椒、香蕉、冰块
+    pepper, banana, ice,
 }
 
 public enum ObjectKind
 {
-    // 食物（包括冰块），障碍物， 身体， 空气
-    food, obstacle, body, air,
+    // 食物（包括冰块），障碍物， 身体， 空气， 陷阱
+    food, obstacle, body, air, trap,
 }
