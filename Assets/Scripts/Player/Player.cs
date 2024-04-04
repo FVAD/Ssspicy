@@ -39,6 +39,7 @@ public class Player : MonoBehaviour
     public LayerMask floorLayerMask; // 地板所在的图层
     public LayerMask GoalLayerMask; // 胜利点所在图层
     public GameObject gameOverUI; // 失败结束页面
+    public GameObject successUI; // 通关页面
     public float movingTargetDistance;
     public float movingCurrentDistance;
     // 以下被整合进结构体,关于这个结构体，position属性是不需要的，但是不排除之后会增加其他属性的可能性，于是就留在这里
@@ -556,6 +557,10 @@ public class Player : MonoBehaviour
     // 检测蛇头下方是否是目标点
     private void CheckSuccess()
     {
+        if(Physics2D.OverlapBoxAll(Vector2.zero, Vector2.one, 0f, foodLayerMask).Length == 0)
+        {
+            LevelIsClear = true;
+        }
         Collider2D collider = Physics2D.OverlapPoint(playerHead.transform.position, GoalLayerMask);
         if(collider != null && LevelIsClear)
         {
@@ -577,7 +582,7 @@ public class Player : MonoBehaviour
         Vector2 tmpVec = new Vector2(0, 0), tmpVec2;
         while (playerLength > 2)
         {
-            yield return new WaitForSeconds(0.5f); // 身体减少等待计时
+            yield return new WaitForSeconds(0.2f); // 身体减少等待计时
             for (int i = 0; i < playerLength - 2; i++)
             {
                 playerBodyData = playerBodyDataList[i];
@@ -600,10 +605,23 @@ public class Player : MonoBehaviour
             playerLength--;
             playerTail.transform.localPosition = tmpVec;
             RefreshPlayerBody();
+            if(playerLength > 2)
+            {
+                playerHead.GetComponent<SpriteRenderer>().sprite = playerHeadSprite[playerBodyDataList[0].body.transform.position.y == playerHead.transform.position.y ? (playerBodyDataList[0].body.transform.position.x > playerHead.transform.position.x ? 15 : 13) : (playerBodyDataList[0].body.transform.position.y > playerHead.transform.position.y ? 14 : 12)];
+            }
+            else
+            {
+                playerHead.GetComponent<SpriteRenderer>().sprite = playerHeadSprite[playerTail.transform.position.y == playerHead.transform.position.y ? (playerTail.transform.position.x > playerHead.transform.position.x ? 15 : 13) : (playerTail.transform.position.y > playerHead.transform.position.y ? 14 : 12)];
+            }
         }
+        yield return new WaitForSeconds(0.2f);
         playerTail.SetActive(false);
+        
         playerHead.GetComponent<SpriteRenderer>().sprite = playerHeadSprite[16];
+        yield return new WaitForSeconds(0.2f);
         playerHead.SetActive(false);
+
+        successUI.SetActive(true);
 
     }
     #endregion
