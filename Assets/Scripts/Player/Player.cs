@@ -6,7 +6,7 @@ public class Player : MonoBehaviour
 {
     private PlayerControl playerControl;
     private Rigidbody2D rb;
-    private bool GameIsOver;
+    // private bool GameIsOver;
     public GameOverState overState;
 
     public List<Sprite> playerHeadSprite;
@@ -16,6 +16,13 @@ public class Player : MonoBehaviour
     public GameObject playerBody;
     public GameObject playerHead;
     public GameObject playerTail;
+    [Header("屏幕内边缘坐标")]
+    public float leftX;
+    public float rightX;
+    public float upY;
+    public float downY;
+
+
     [Header("玩家属性")]
     public Vector2 currentHeadDirection;
     public int playerLength = 5; // 长度理论上应该由关卡决定
@@ -74,6 +81,16 @@ public class Player : MonoBehaviour
     }
     void Start()
     {
+        Camera mainCamera = Camera.main;
+
+        Vector2 screenRUPoint = new Vector2(Screen.width, Screen.height);
+        Vector2 worldRUPoint = mainCamera.ScreenToWorldPoint(screenRUPoint);
+        rightX = worldRUPoint.x;
+        leftX = mainCamera.ScreenToWorldPoint(Vector2.zero).x;
+        upY = worldRUPoint.y;
+        downY = mainCamera.ScreenToWorldPoint(Vector2.zero).y;
+
+
         RefreshPlayerBody();
     }
 
@@ -130,7 +147,7 @@ public class Player : MonoBehaviour
         return collider != null;
     }
     #endregion
-    #region 食物检测
+    #region 食物检测（啊啊啊啊啊干脆把冰块也看成食物吧）
     public bool CheckFoodAtPoint(Vector2 point)
     {
         // 检测指定点是否存在食物
@@ -140,15 +157,34 @@ public class Player : MonoBehaviour
         return collider != null;
     }
 
+    private bool CheckFoodCanBePushed(Vector2 position, Vector2 addPosition)
+    {
+        if(CheckObstacleAtPoint((Vector2)transform.position + position + addPosition) ||
+                CheckBodyAtPoint(position + addPosition))
+        {
+            
+            // 这里要改上面的函数方法，需要返回一个collider2D
+        }
+        return false;
+    }
+
     public void PushFoodToDirection(Vector2 direction)
     {
-        Collider2D collider = Physics2D.OverlapPoint((Vector2)transform.position + (Vector2)playerHead.transform.localPosition + direction, foodLayerMask);
-        if(collider != null)
+        Vector2 colliderPoint = (Vector2)transform.position + (Vector2)playerHead.transform.localPosition + direction;
+        Collider2D collider = Physics2D.OverlapPoint(colliderPoint, foodLayerMask);
+        while (collider != null)
         {
-            Debug.Log("推动");
-            collider.transform.localPosition = (Vector2)collider.transform.localPosition + direction;
+            PushEachFood(collider, direction);
             DectectAfterPushing(collider);
+            colliderPoint += direction;
+            collider = Physics2D.OverlapPoint(colliderPoint, foodLayerMask);
         }
+    }
+
+    private void PushEachFood(Collider2D collider,Vector2 direction)
+    {
+        Debug.Log("推动");
+        collider.transform.localPosition = (Vector2)collider.transform.localPosition + direction;
     }
 
     private void DectectAfterPushing(Collider2D collider)
@@ -172,21 +208,29 @@ public class Player : MonoBehaviour
         Collider2D collider = Physics2D.OverlapPoint(point, foodLayerMask);
         if (collider != null)
         {
-            if(collider.GetComponent<props>().foodKind == FoodKind.banana)
+            switch(collider.GetComponent<props>().foodKind)
             {
-                // 吃掉香蕉
-                Destroy(collider.gameObject);
+                case FoodKind.banana:
+                    // 吃掉香蕉
+                    Destroy(collider.gameObject);
 
-                PlayerBodyData tmpData = new PlayerBodyData();
-                tmpData.body = GameObject.Instantiate(playerBody);
-                tmpData.body.transform.SetParent(transform);
-                tmpData.body.transform.localPosition = playerHead.transform.localPosition;
-                playerBodyDataList.Insert(0, tmpData);
-                playerLength++;
+                    PlayerBodyData tmpData = new PlayerBodyData();
+                    tmpData.body = GameObject.Instantiate(playerBody);
+                    tmpData.body.transform.SetParent(transform);
+                    tmpData.body.transform.localPosition = playerHead.transform.localPosition;
+                    playerBodyDataList.Insert(0, tmpData);
+                    playerLength++;
 
-                playerHead.transform.position = point;
-                RefreshPlayerBody();
+                    playerHead.transform.position = point;
+                    RefreshPlayerBody();
+                    break;
+                case FoodKind.pepper:
+                    break;
+                default:
+                    Debug.LogError("食物没有标签");
+                    break;
             }
+            
         }
     }
     #endregion
@@ -245,7 +289,9 @@ public class Player : MonoBehaviour
             Debug.Log("移动失败");
             return;
         }
-        if(CheckObstacleAtPoint((Vector2)transform.position + position + 0.25f * Vector2.up) && CheckObstacleAtPoint((Vector2)transform.position + position - 0.25f * Vector2.up))
+        // if(CheckObstacleAtPoint((Vector2)transform.position + position + 0.25f * Vector2.up) && CheckObstacleAtPoint((Vector2)transform.position + position - 0.25f * Vector2.up))
+        // 现在障碍物变成独立个体而不是Tile了
+        if (CheckObstacleAtPoint((Vector2)transform.position + position))
         {
             Debug.Log("移动失败");
             return;
@@ -254,11 +300,12 @@ public class Player : MonoBehaviour
         #region 食物确定
         if(CheckFoodAtPoint((Vector2)transform.position + position))
         {
-            if((CheckObstacleAtPoint((Vector2)transform.position + position + addPosition + 0.25f * Vector2.up) && CheckObstacleAtPoint((Vector2)transform.position + position + addPosition - 0.25f * Vector2.up)) || 
+            if(CheckObstacleAtPoint((Vector2)transform.position + position + addPosition)  || 
                 CheckBodyAtPoint(position + addPosition))
             {
                 // Debug.Log("存在障碍物");
                 // 两个Position检测食物延长线是否有障碍物或者自己的身体, 如果有，吃，没有，推动
+                // 不太对，多个物体叠一起就爆了，写个函数罢
                 // 爽吃！
                 EatFood((Vector2)transform.position + position);
                 return;
