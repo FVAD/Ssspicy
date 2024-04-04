@@ -8,22 +8,28 @@ using UnityEngine.SceneManagement;
 public class PlayerControl : MonoBehaviour
 {
     public PlayerInputControl inputControl;
+    private bool isPaused = false;
     // public GameObject playerHead;
     private Player player;
     // public Sprite[] playerHeadSprite; 
     public Vector2 currentHeadDirection = new Vector2(1, 0); // 之后要改这里
+    public Canvas canvas;
     // Start is called before the first frame update
     private void Awake()
     {
         player = GetComponent<Player>();
+        canvas.enabled = false;
         inputControl = new PlayerInputControl();
         inputControl.Player.Move.started += Move;
         inputControl.Player.Reset.started += Reset;
+        inputControl.Player.Pause.started += Pause;
     }
+
+
 
     private void Reset(InputAction.CallbackContext obj)
     {
-        SceneManager.LoadScene("Scene1");
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     private void Move(InputAction.CallbackContext obj)
@@ -53,5 +59,38 @@ public class PlayerControl : MonoBehaviour
         
     }
 
+    #region UI相关
+    private void Pause(InputAction.CallbackContext obj)
+    {
+        if(isPaused)
+        {
+            canvas.enabled = false;
+        }
+        else
+        {
+            canvas.enabled = true;
+        }
+        isPaused = !isPaused;
+
+    }
+
+    public void PauseByButton()
+    {
+        if (isPaused)
+        {
+            canvas.enabled = false;
+        }
+        else
+        {
+            canvas.enabled = true;
+        }
+        isPaused = !isPaused;
+    }
+
+    public void ReturnToMainPage()
+    {
+        SceneManager.LoadScene("start");
+    }
+    #endregion
 
 }

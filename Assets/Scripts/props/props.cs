@@ -10,27 +10,39 @@ public class props : MonoBehaviour
     private Vector2 startPos;
     private Vector2 startScale;
 
+    public Player player;
     [Header("主要属性")]
     public LayerMask floorLayerMask;
+    public LayerMask foodLayerMask;
     public GameObject mainSprite;
     public GameObject shadow;
     public FoodKind foodKind;
+    public bool isMoving;
+    public Vector2 startMovingPos;
+    public Vector2 endMovingPos;
+    // public float movingCurrentDistance;
+    // public float movingTargetDistance;
     private void Awake()
     {
-        
+        player = GameObject.Find("Player").GetComponent<Player>();
     }
     // Start is called before the first frame update
     void Start()
     {
         startPos = mainSprite.transform.localPosition;
         startScale = shadow.transform.localScale;
+        isMoving = false;
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        if(isMoving)
+        {
+            PushingObjectWhileMoving();
+        }
     }
+
     public bool CheckFloorBelowFoot()
     {
         Collider2D collider;
@@ -48,8 +60,61 @@ public class props : MonoBehaviour
 
     public void FoodFallingFailure()
     {
+        isMoving = true;
         StartCoroutine(FallingProgress());
     }
+
+    #region 辣椒推动移动相关
+    public void BeingPushedToPoint(Vector2 point)
+    {
+        isMoving = true;
+        StartCoroutine(MovingProgress(point));
+    }
+
+    IEnumerator MovingProgress(Vector2 endPoint)
+    {
+        Vector2 startPos = transform.position;
+        Debug.Log("移动过程");
+        startMovingPos = startPos;
+        endMovingPos = endPoint;
+        while ((Vector2)transform.position != endPoint)
+        {
+            // 采取类似的移动方式
+            
+            // 计算当前帧的移动距离
+            float step = 20f * Time.deltaTime;
+            // 移动物体向目标位置
+            transform.position = Vector2.MoveTowards(transform.position, endPoint, step);
+
+            // 等待下一帧
+            yield return null;
+        }
+
+        isMoving = false;
+
+        //if(!CheckFloorBelowFoot())
+        //{
+        //    player.FoodDisappearFailureStart();
+        //}
+        
+    }
+
+    // 推动路上的物件
+    private void PushingObjectWhileMoving()
+    {
+        Collider2D collider;
+        Vector2 direction = (endMovingPos - startMovingPos).normalized;
+        collider = Physics2D.OverlapPoint((Vector2)transform.position + 0.5f * direction, foodLayerMask);
+        if(collider != null)
+        {
+            if (collider.GetComponent<props>().isMoving == false)
+            {
+                collider.GetComponent<props>().BeingPushedToPoint(endMovingPos + direction);
+            }
+        }
+
+    }
+    #endregion
 
     IEnumerator FallingProgress()
     {

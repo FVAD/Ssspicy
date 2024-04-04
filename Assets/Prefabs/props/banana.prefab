@@ -134,9 +134,15 @@ MonoBehaviour:
   floorLayerMask:
     serializedVersion: 2
     m_Bits: 128
+  foodLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
   mainSprite: {fileID: 7968007209905824112}
   shadow: {fileID: 1599769583834480446}
   foodKind: 1
+  isMoving: 0
+  startMovingPos: {x: 0, y: 0}
+  endMovingPos: {x: 0, y: 0}
 --- !u!61 &8720667543980089934
 BoxCollider2D:
   m_ObjectHideFlags: 0
